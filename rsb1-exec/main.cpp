@@ -40,31 +40,34 @@ void init()
 
     start_scans();
 
-    std::string loc;
-    printf("file path: ");
-    std::getline(std::cin, loc);
-
-    // read it from a file
-    std::ifstream file(loc, std::ios::binary);
-    if(!file.is_open()) {
-        printf("error opening file\n");
-        return;
-    }
-
-    std::stringstream buff;
-    buff << file.rdbuf();
-    std::string code(buff.str());
-    file.close();
-    printf("len: %d\n", code.length());
-
     _deserialize deserialize = (_deserialize) Addrs::deserialize;
     // it can just be int*, no need to include Lua in this project.
     int *g_state = scriptContext->GetGlobalState(1);
-    deserialize(g_state, code, "a", scriptContext->GetCoreScriptModKey());
-    RESTORE_HACKFLAG();
-    printf("done\n");
-    SET_IDENTITY(g_state, 7); // doesn't work ??
-    scriptContext->Spawn(g_state);
+
+    while(true) {
+        std::string loc;
+        printf("file path: ");
+        std::getline(std::cin, loc);
+
+        // read it from a file
+        std::ifstream file(loc, std::ios::binary);
+        if(!file.is_open()) {
+            printf("error opening file\n");
+            return;
+        }
+
+        std::stringstream buff;
+        buff << file.rdbuf();
+        std::string code(buff.str());
+        file.close();
+        printf("len: %d\n", code.length());
+
+        deserialize(g_state, code, "a", scriptContext->GetCoreScriptModKey());
+        RESTORE_HACKFLAG();
+        printf("done\n");
+        // SET_IDENTITY(g_state, 7); // doesn't work ??
+        scriptContext->Spawn(g_state);
+    }
 }
 
 BOOL APIENTRY DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
