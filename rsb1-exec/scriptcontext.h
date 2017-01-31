@@ -15,8 +15,6 @@ class ScriptContext {
         int* GetGlobalState(int stateidx)
         {
             typedef int* (__thiscall *_GetGlobalState)(ScriptContext*, int);
-            // _GetGlobalState ggs = (_GetGlobalState) SigScanner::ScanNoAlign((char*) "\x55\x8B\xEC\x56\x57\x6A\x05", 7);
-            // return ggs(this, stateidx);
             return ((_GetGlobalState) Addrs::getglobalstate)(this, stateidx);
         }
         void Spawn(int *state)
