@@ -9,6 +9,9 @@
 #include "sigscanner.h"
 #include "scans.h"
 
+
+_deserialize deserialize; // ew global.. jk this isn't bad
+
 // set first instruction of FreeConsole to ret, causing it to do nothing
 // ROBLOX has a thread which constantly calls FreeConsole just to inconvenience us. lol.
 void enable_console()
@@ -18,6 +21,55 @@ void enable_console()
     VirtualProtect(addr, 1, PAGE_EXECUTE_READWRITE, &oldp);
     *addr = 0xC3;
     VirtualProtect(addr, 1, oldp, &oldp);
+}
+
+// thanks booing 4 help!
+// sad to make this public :(
+__declspec(naked) int spoof_retaddr(int func_addr, int nargs, int *arg_buffer, int *retss)
+{
+    __asm {
+        push ebp
+        mov ebp, esp
+
+        pushad
+
+        mov edx, [nargs]
+
+        mov eax, [arg_buffer]
+        xor ecx, ecx
+
+        push real_return
+
+        lupe:
+        mov ebx, [eax+ecx*4]
+        push ebx
+        inc ecx
+        cmp ecx, edx
+        jne lupe
+
+        mov eax, [retss]
+        mov eax, [eax+edx*4]
+        push eax
+        mov eax, [func_addr]
+        jmp eax
+
+        real_return:
+        mov [ebp-0x50], eax // ew
+        popad
+        mov eax, [ebp-0x50]
+        pop ebp
+        ret
+    }
+}
+
+void execute(int *state, ScriptContext *scriptContext, const char *name, std::string code)
+{
+    int args[] = {(int) state};
+    int *nstate = (int*) spoof_retaddr(Addrs::newthread, 1, args, Addrs::rets);
+    deserialize(nstate, code, name, scriptContext->GetCoreScriptModKey());
+    RESTORE_HACKFLAG();
+    // SET_IDENTITY(g_state, 7); // doesn't work ??
+    scriptContext->Spawn(nstate);
 }
 
 // TODO: split this up into different functions
@@ -39,13 +91,14 @@ void init()
     } while(!scriptContext);
 
     start_scans();
+    deserialize = (_deserialize) Addrs::deserialize;
 
-    _deserialize deserialize = (_deserialize) Addrs::deserialize;
     // it can just be int*, no need to include Lua in this project.
     int *g_state = scriptContext->GetGlobalState(1);
 
+    std::string loc;
+    std::stringstream buff;
     while(true) {
-        std::string loc;
         printf("file path: ");
         std::getline(std::cin, loc);
 
@@ -53,20 +106,16 @@ void init()
         std::ifstream file(loc, std::ios::binary);
         if(!file.is_open()) {
             printf("error opening file\n");
-            return;
+            continue;
         }
 
-        std::stringstream buff;
         buff << file.rdbuf();
         std::string code(buff.str());
         file.close();
         printf("len: %d\n", code.length());
-
-        deserialize(g_state, code, "a", scriptContext->GetCoreScriptModKey());
-        RESTORE_HACKFLAG();
+        execute(g_state, scriptContext, loc.c_str(), code);
+        buff.str(std::string());
         printf("done\n");
-        // SET_IDENTITY(g_state, 7); // doesn't work ??
-        scriptContext->Spawn(g_state);
     }
 }
 
