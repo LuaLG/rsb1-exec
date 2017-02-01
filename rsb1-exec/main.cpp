@@ -65,11 +65,11 @@ __declspec(naked) int spoof_retaddr(int func_addr, int nargs, int *arg_buffer, i
 void execute(int *state, ScriptContext *scriptContext, const char *name, std::string code)
 {
     int args[] = {(int) state};
-    int *nstate = (int*) spoof_retaddr(Addrs::newthread, 1, args, Addrs::rets);
-    deserialize(nstate, code, name, scriptContext->GetCoreScriptModKey());
+    int *thread = (int*) spoof_retaddr(Addrs::newthread, 1, args, Addrs::rets);
+    deserialize(thread, code, name, scriptContext->GetCoreScriptModKey());
     RESTORE_HACKFLAG();
-    // SET_IDENTITY(g_state, 7); // doesn't work ??
-    scriptContext->Spawn(nstate);
+    // SET_IDENTITY(thread, 7); // doesn't work ??
+    scriptContext->Spawn(thread);
 }
 
 // TODO: split this up into different functions
@@ -83,7 +83,7 @@ void init()
     SetConsoleTitle("rsb1-exec");
 
     int base = (int) GetModuleHandle(0);
-    int sc_vtable = (base + 0xD8DAAC);
+    int sc_vtable = (base + 0xD98E94);
     ScriptContext *scriptContext;
     do {
         scriptContext = (ScriptContext*) SigScanner::ScanNoAlignW((char*) &sc_vtable, 4);
